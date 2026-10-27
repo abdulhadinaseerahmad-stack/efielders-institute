@@ -97,8 +97,18 @@ var smoothScroll = null;
     e.preventDefault();
     // measure from the live scroll position and stop below the floating header (scroll-padding-top)
     var pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
-    var y = target.getBoundingClientRect().top + window.scrollY - pad;
-    smoothScroll.scrollTo(y, { duration: 1.2, easing: easeOutExpo });
+    var glide = function (duration) {
+      var y = target.getBoundingClientRect().top + window.scrollY - pad;
+      smoothScroll.scrollTo(y, {
+        duration: duration,
+        easing: easeOutExpo,
+        onComplete: function () {
+          // content above may have grown during the glide (late images, loaded lists): settle once
+          if (duration > 0.5 && Math.abs(target.getBoundingClientRect().top - pad) > 2) glide(0.5);
+        }
+      });
+    };
+    glide(1.2);
     if (history.pushState) history.pushState(null, "", hash);
   });
 })();

@@ -223,30 +223,19 @@
   modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
-  /* ---------- Load data when the section comes near ---------- */
-  var loaded = false;
-  function load() {
-    if (loaded) return;
-    loaded = true;
-    fetch(BASE + "data/seller-catalog.json?v=1")
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function (data) {
-        products = data.products || [];
-        order = data.order || {};
-        var total = document.getElementById("catTotal");
-        if (total) total.textContent = products.length;
-        update(false);
-      })
-      .catch(function () {
-        countEl.textContent = "The catalogue could not load. Please refresh the page or ask us on WhatsApp.";
-      });
-  }
-  if ("IntersectionObserver" in window) {
-    var io = new IntersectionObserver(function (en) {
-      if (en[0].isIntersecting) { io.disconnect(); load(); }
-    }, { rootMargin: "800px 0px" });
-    io.observe(root);
-  } else {
-    load();
-  }
+  /* ---------- Load data ----------
+     Loaded straight away (not on scroll) so the page height is settled before
+     visitors use the menu links; a late jump would push #apply out of place. */
+  fetch(BASE + "data/seller-catalog.json?v=1")
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (data) {
+      products = data.products || [];
+      order = data.order || {};
+      var total = document.getElementById("catTotal");
+      if (total) total.textContent = products.length;
+      update(false);
+    })
+    .catch(function () {
+      countEl.textContent = "The catalogue could not load. Please refresh the page or ask us on WhatsApp.";
+    });
 })();
