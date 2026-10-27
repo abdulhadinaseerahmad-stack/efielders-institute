@@ -95,23 +95,62 @@
     .sp-strip__row b { color:var(--text); font-size:16px; }
     .sp-strip__dot { width:5px; height:5px; border-radius:50%; background:rgba(33,206,36,.6); }
 
-    /* products grid (colourful tiles on light bg) */
-    .sp-products { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-    @media (max-width:860px){ .sp-products{ grid-template-columns:repeat(2,1fr); } }
-    @media (max-width:520px){ .sp-products{ grid-template-columns:1fr; } }
-    .sp-prod { position:relative; aspect-ratio:1/1; border-radius:18px; overflow:hidden; border:1px solid var(--line); }
-    .sp-prod__img { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
-    .sp-prod__img svg { width:40%; height:40%; opacity:.92; fill:none; stroke:rgba(255,255,255,.9); stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
-    .sp-prod::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72)); }
-    .sp-prod__tag { position:absolute; z-index:2; top:12px; left:12px; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#0B0E0C; background:rgba(255,255,255,.88); padding:4px 9px; border-radius:999px; }
-    .sp-prod__name { position:absolute; z-index:2; left:16px; bottom:14px; color:#fff; font-family:var(--font-head); font-weight:700; font-size:18px; }
-    .sp-prod__name small { display:block; font-family:var(--font-body); font-weight:500; font-size:12.5px; color:#E4ECE4; letter-spacing:0; text-transform:none; margin-top:2px; }
-    .g-leather { background:linear-gradient(145deg,#6a4529,#3a2617); }
-    .g-chaps { background:linear-gradient(145deg,#454b52,#23272c); }
-    .g-gloves { background:linear-gradient(145deg,#5a3a2a,#2e1d15); }
-    .g-ball { background:linear-gradient(145deg,#1b5027,#0f2e16); }
-    .g-sports { background:linear-gradient(145deg,#274a66,#132635); }
-    .g-bag { background:linear-gradient(145deg,#5f4826,#2e2313); }
+    /* product catalogue: category tabs, grid, quick view */
+    .cat__tabs { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; }
+    .cat__tab { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:10px 18px; border-radius:999px; border:1px solid var(--line); background:var(--white); color:var(--text); font-weight:700; font-size:15px; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
+    .cat__tab:hover { border-color:var(--green); }
+    .cat__tab[aria-selected="true"] { background:var(--black); border-color:var(--black); color:var(--white); }
+    .cat__tab small, .cat__chip small { font-size:12px; font-weight:700; opacity:.6; }
+    .cat__chips { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:6px; }
+    .cat__chips[hidden] { display:none; }
+    .cat__chip { min-height:38px; padding:7px 14px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--muted); font-weight:600; font-size:14px; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
+    .cat__chip:hover { border-color:var(--green); color:var(--text); }
+    .cat__chip[aria-pressed="true"] { background:rgba(33,206,36,.14); border-color:var(--green); color:var(--green-text); }
+    .cat__count { text-align:center; color:var(--muted); font-size:14px; margin:14px 0 22px; }
+    .cat__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+    @media (max-width:1000px){ .cat__grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+    @media (max-width:700px){ .cat__grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } }
+    .cat-card { display:flex; flex-direction:column; text-align:left; padding:0; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--white); color:var(--text); cursor:pointer; box-shadow:0 1px 2px rgba(16,16,16,.04), 0 8px 20px rgba(16,16,16,.06); transition:transform .24s cubic-bezier(.2,.7,.3,1), box-shadow .24s ease, border-color .2s; }
+    .cat-card:hover { transform:translateY(-4px); border-color:rgba(33,206,36,.5); box-shadow:0 10px 20px rgba(16,16,16,.08), 0 22px 44px rgba(16,16,16,.1); }
+    .cat-card__img { display:block; aspect-ratio:1/1; background:#fff; border-bottom:1px solid var(--line); }
+    .cat-card__img img { width:100%; height:100%; object-fit:contain; }
+    .cat-card__body { display:flex; flex-direction:column; gap:5px; padding:14px 14px 16px; flex:1; }
+    .cat-card__cat { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--green-text); }
+    .cat-card__name { font-weight:600; font-size:14.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .cat-card__sku { margin-top:auto; padding-top:4px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    @media (max-width:700px){ .cat-card__body{ padding:11px 11px 13px; } .cat-card__name{ font-size:13.5px; } }
+    .cat__more { display:flex; justify-content:center; margin-top:28px; }
+    .cat__more .btn[hidden] { display:none; }
+
+    .cat-modal { position:fixed; inset:0; z-index:1002; background:rgba(8,10,8,.78); display:flex; align-items:center; justify-content:center; padding:20px; }
+    .cat-modal[hidden] { display:none; }
+    .cat-modal__box { position:relative; width:min(980px,100%); max-height:calc(100vh - 40px); overflow-y:auto; overscroll-behavior:contain; background:var(--white); border-radius:26px; display:grid; grid-template-columns:1.05fr 1fr; box-shadow:0 40px 90px rgba(0,0,0,.4); }
+    .cat-modal__close { position:absolute; top:12px; right:12px; z-index:2; width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--white); color:var(--black); font-size:28px; line-height:1; cursor:pointer; }
+    .cat-modal__close:hover { background:var(--green); border-color:var(--green); }
+    .cat-modal__media { padding:20px; background:#fff; border-right:1px solid var(--line); }
+    .cat-modal__main { aspect-ratio:1/1; border-radius:18px; overflow:hidden; background:#fff; }
+    .cat-modal__main img { width:100%; height:100%; object-fit:contain; }
+    .cat-modal__thumbs { display:flex; gap:8px; margin-top:12px; }
+    .cat-modal__thumbs button { width:64px; height:64px; padding:0; border:2px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; cursor:pointer; }
+    .cat-modal__thumbs button[aria-current="true"] { border-color:var(--green); }
+    .cat-modal__thumbs img { width:100%; height:100%; object-fit:contain; }
+    .cat-modal__info { padding:30px 28px 28px; display:flex; flex-direction:column; gap:10px; }
+    .cat-modal__cat { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--green-text); padding-right:48px; }
+    .cat-modal__title { font-family:var(--font-head); font-size:22px; line-height:1.25; color:var(--text); }
+    .cat-modal__sku { color:var(--muted); font-size:14px; }
+    .cat-modal__specs { margin:6px 0 4px; display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:14px; border-top:1px solid var(--line); padding-top:14px; }
+    .cat-modal__specs dt { font-weight:700; color:var(--text); }
+    .cat-modal__specs dd { margin:0; color:var(--muted); }
+    .cat-modal__cta { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+    .cat-modal__note { font-size:13px; color:var(--muted); }
+    @media (max-width:760px){
+      .cat-modal { padding:10px; align-items:flex-end; }
+      .cat-modal__box { grid-template-columns:1fr; max-height:calc(100vh - 20px); border-radius:22px; }
+      .cat-modal__media { border-right:0; border-bottom:1px solid var(--line); padding:14px; }
+      .cat-modal__info { padding:20px 18px 22px; }
+      .cat-modal__title { font-size:19px; }
+      .cat-modal__cta .btn { width:100%; }
+    }
     .sp-products__note { text-align:center; color:var(--muted); font-size:14px; margin-top:20px; }
 
     /* steps (light cards) */
@@ -289,22 +328,44 @@
 <!-- ============ PRODUCTS ============ -->
 <section class="sp-section sp-section--tight sp-section--tint" id="products">
   <div class="container">
-    <div class="sp-head--center" style="margin-bottom:34px">
+    <div class="sp-head--center" style="margin-bottom:30px">
       <span class="sp-eyebrow">Products</span>
       <h2 class="sp-h2">Products you can list and sell</h2>
-      <p class="sp-sub">Quality products made in Sialkot. Members unlock the full catalogue with images, details and prices.</p>
+      <p class="sp-sub"><span id="catTotal">660+</span> ready-to-list products made in Sialkot, sorted by category. Tap any product to see its photos, sizes and delivery time.</p>
     </div>
-    <div class="sp-products">
-      <div class="sp-prod g-leather"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><path d="M16 3l-4 3-4-3-5 3 2 4v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8l2-4z"/><path d="M12 6v15"/></svg></div><div class="sp-prod__name">Leather Jackets<small>Men &amp; women</small></div></div>
-      <div class="sp-prod g-chaps"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><path d="M8 3h8l1 6-2 12h-3l-1-8-1 8H6L4 9z"/></svg></div><div class="sp-prod__name">Leather Chaps<small>Biker &amp; fashion</small></div></div>
-      <div class="sp-prod g-gloves"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><path d="M7 11V5a1.5 1.5 0 0 1 3 0v5m0-1V4a1.5 1.5 0 0 1 3 0v6m0-1V5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7 6 6 0 0 1-6-6c0-2 1-3 1-3"/></svg></div><div class="sp-prod__name">Leather Gloves<small>Riding &amp; work</small></div></div>
-      <div class="sp-prod g-ball"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 5h-5L8 10z"/><path d="M12 3v4M3.5 9l4.5 1M20.5 9l-4.5 1M6.5 20l2-4M17.5 20l-2-4"/></svg></div><div class="sp-prod__name">Footballs<small>Match &amp; training</small></div></div>
-      <div class="sp-prod g-sports"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 4 4-3 3v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8L4 7z"/></svg></div><div class="sp-prod__name">Sportswear<small>Custom kits</small></div></div>
-      <div class="sp-prod g-bag"><span class="sp-prod__tag">Sample</span><div class="sp-prod__img"><svg viewBox="0 0 24 24"><path d="M6 8h12l1 12H5z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></div><div class="sp-prod__name">Bags &amp; Accessories<small>Leather goods</small></div></div>
+    <div class="cat" id="catalog">
+      <div class="cat__tabs" id="catMain" role="tablist" aria-label="Product categories"></div>
+      <div class="cat__chips" id="catSub" aria-label="Sub categories" hidden></div>
+      <p class="cat__count" id="catCount" aria-live="polite">Loading products&hellip;</p>
+      <div class="cat__grid" id="catGrid"></div>
+      <div class="cat__more"><button class="btn btn--outline" id="catMore" type="button" hidden>Load more products</button></div>
+      <noscript><p class="cat__count">Turn on JavaScript to browse the catalogue, or ask us on <a href="https://wa.me/923194436232">WhatsApp</a>.</p></noscript>
     </div>
-    <p class="sp-products__note">Sample categories shown. Full product catalogue is unlocked for members.</p>
+    <p class="sp-products__note">Wholesale prices, full photo sets and order support are shared with members after joining.</p>
   </div>
 </section>
+
+<!-- product quick view -->
+<div class="cat-modal" id="catModal" hidden role="dialog" aria-modal="true" aria-labelledby="cqTitle">
+  <div class="cat-modal__box" data-lenis-prevent>
+    <button class="cat-modal__close" id="cqClose" type="button" aria-label="Close product details">&times;</button>
+    <div class="cat-modal__media">
+      <div class="cat-modal__main"><img id="cqImg" alt="" width="1100" height="1100"></div>
+      <div class="cat-modal__thumbs" id="cqThumbs"></div>
+    </div>
+    <div class="cat-modal__info">
+      <span class="cat-modal__cat" id="cqCat"></span>
+      <h3 class="cat-modal__title" id="cqTitle"></h3>
+      <p class="cat-modal__sku" id="cqSku"></p>
+      <dl class="cat-modal__specs" id="cqSpecs"></dl>
+      <div class="cat-modal__cta">
+        <a class="btn btn--primary" href="#apply" id="cqJoin">Join to sell this product</a>
+        <a class="btn btn--outline" href="https://wa.me/923194436232" id="cqWa" target="_blank" rel="noopener">Ask on WhatsApp</a>
+      </div>
+      <p class="cat-modal__note">Members get the wholesale price and the full photo set.</p>
+    </div>
+  </div>
+</div>
 
 <!-- ============ HOW IT WORKS ============ -->
 <section class="sp-section" id="how">
@@ -527,6 +588,7 @@
 
 <script src="../assets/js/lenis.min.js?v=1.3.26"></script>
 <script src="../assets/js/main.js?v=15"></script>
+<script src="../assets/js/seller-catalog.js?v=1"></script>
 <script>
   /* Seller join form -> WhatsApp */
   (function () {
