@@ -6,7 +6,7 @@ Usage:
 --reuse-images keeps image files that already exist in <site root> (fast rebuild of the data only).
 
 Reads every <Main>/<Sub>/<SKU - title>/product-data.json (+ images/) in the export and writes:
-    assets/data/seller-catalog.json      product data used by seller-program/index.html
+    members/data/catalog.php             product data, served to members by members/api.php
     assets/img/catalog/t/<SKU>.webp      480px card image
     assets/img/catalog/l/<SKU>-<n>.webp  1100px quick-view images (up to 4)
     assets/img/catalog/charts/<id>.webp  size charts shared between products
@@ -22,6 +22,10 @@ from collections import Counter
 from PIL import Image, ImageOps
 
 THUMB_PX, LARGE_PX, CHART_PX, GALLERY_MAX = 480, 1100, 1400, 4
+# products visitors can see before logging in
+PREVIEW_COUNT = 8
+# first line of private data files, see members/lib.php
+GUARD_LINE = "<?php http_response_code(404); exit; ?>\n"
 # images shared by this many products are size charts, not product photos
 SHARED_IMAGE_LIMIT = 3
 # added to every supplier price before it is shown on the site
@@ -176,10 +180,19 @@ def main(src_root, site_root, reuse=False):
 
     # category order first, newest SKU first inside each category
     out.sort(key=lambda p: (sub_rank[p["c"]], -int(p["s"][3:])))
-    data_dir = os.path.join(site_root, "assets/data")
+    # preview: the newest product of each category in turn, so visitors see the range
+    by_cat = {}
+    for p in out:
+        by_cat.setdefault(p["c"], []).append(p["s"])
+    preview, row = [], 0
+    while len(preview) < PREVIEW_COUNT and any(len(skus) > row for skus in by_cat.values()):
+        preview += [skus[row] for skus in by_cat.values() if len(skus) > row]
+        row += 1
+    data_dir = os.path.join(site_root, "members/data")
     os.makedirs(data_dir, exist_ok=True)
-    catalog = {"order": CATEGORY_ORDER, "products": out}
-    with open(os.path.join(data_dir, "seller-catalog.json"), "w", encoding="utf-8") as fh:
+    catalog = {"order": CATEGORY_ORDER, "preview": preview[:PREVIEW_COUNT], "products": out}
+    with open(os.path.join(data_dir, "catalog.php"), "w", encoding="utf-8") as fh:
+        fh.write(GUARD_LINE)
         json.dump(catalog, fh, ensure_ascii=False, separators=(",", ":"))
     print("%d products, %d categories, %d size charts, %d products with a chart, %d with a price" % (
         len(out), len({p["c"] for p in out}), len(chart_src),

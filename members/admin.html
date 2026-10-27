@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manage Members | e-fielders Seller Program</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="../assets/img/favicon-5.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css?v=23">
+  <style>
+    body { background:var(--tint); }
+    .adm { max-width:880px; margin:0 auto; padding:40px 20px 80px; }
+    .adm__top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:26px; }
+    .adm__top img { height:44px; width:auto; }
+    .adm__top a, .adm__top button { font-weight:700; color:var(--green-text); text-decoration:underline; background:none; border:0; cursor:pointer; font-size:15px; }
+    .adm h1 { font-size:clamp(26px,4vw,34px); margin-bottom:6px; }
+    .adm__lead { color:var(--muted); margin-bottom:24px; }
+    .adm .form { margin-bottom:28px; }
+    .adm__row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:640px){ .adm__row { grid-template-columns:1fr; } }
+    .adm__check { display:flex; align-items:center; gap:10px; font-weight:600; font-size:14px; }
+    .adm__check input { width:18px; height:18px; min-height:0; }
+    .adm__ok { color:var(--green-text); font-weight:700; font-size:14px; }
+    .adm__list { background:var(--white); border:1px solid var(--line); border-radius:22px; overflow:hidden; }
+    .adm__list h2 { font-size:18px; padding:18px 22px; border-bottom:1px solid var(--line); }
+    .adm__item { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; padding:14px 22px; border-bottom:1px solid var(--line); }
+    .adm__item:last-child { border-bottom:0; }
+    .adm__item b { word-break:break-all; }
+    .adm__item small { display:block; color:var(--muted); }
+    .adm__tag { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; background:var(--black); color:var(--white); padding:3px 8px; border-radius:999px; margin-left:8px; }
+    .adm__remove { border:1px solid #E3B4AF; color:#B42318; background:var(--white); border-radius:999px; padding:8px 16px; font-weight:700; cursor:pointer; }
+    .adm__remove:hover { background:#FDECEA; }
+    .adm__empty { padding:22px; color:var(--muted); }
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body>
+<main class="adm">
+  <div class="adm__top">
+    <a href="../seller-program/" aria-label="Back to the Seller Program"><img src="../assets/img/logo-5.png" alt="e-fielders Institute" width="124" height="44"></a>
+    <span id="who" hidden>Logged in as <b id="whoEmail"></b> &middot; <button type="button" id="logout">Log out</button></span>
+  </div>
+
+  <!-- shown until an admin logs in -->
+  <section id="loginView" hidden>
+    <h1>Manage members</h1>
+    <p class="adm__lead">Admins only. Log in with your admin email and password.</p>
+    <form class="form" id="loginForm" novalidate>
+      <div class="form__row"><label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" required></div>
+      <div class="form__row"><label for="lPass">Password</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+      <p class="form__error" id="loginError" role="alert" hidden></p>
+      <button class="btn btn--primary" type="submit">Log in</button>
+    </form>
+  </section>
+
+  <section id="denied" hidden>
+    <h1>Admins only</h1>
+    <p class="adm__lead">This account can browse the catalogue but cannot manage members. <a href="../seller-program/#products">Go to the catalogue</a>.</p>
+  </section>
+
+  <section id="adminView" hidden>
+    <h1>Manage members</h1>
+    <p class="adm__lead">Add a buyer after their payment is confirmed. They log in on the Seller Program page with this email and password. To reset a password, add the same email again with a new password.</p>
+    <form class="form" id="saveForm" novalidate>
+      <div class="adm__row">
+        <div class="form__row"><label for="mEmail">Member email</label><input id="mEmail" type="email" autocomplete="off" required placeholder="buyer@gmail.com"></div>
+        <div class="form__row"><label for="mPass">Password (8+ characters)</label><input id="mPass" type="text" autocomplete="new-password" required minlength="8"></div>
+      </div>
+      <label class="adm__check"><input id="mAdmin" type="checkbox"> Admin (can manage members)</label>
+      <p class="form__error" id="saveError" role="alert" hidden></p>
+      <p class="adm__ok" id="saveOk" role="status" hidden></p>
+      <button class="btn btn--primary" type="submit">Save member</button>
+    </form>
+    <div class="adm__list">
+      <h2>Members (<span id="memberCount">0</span>)</h2>
+      <div id="memberList"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* e-fielders member admin: add, reset and remove Seller Program members */
+(function () {
+  "use strict";
+  var API = "api.php";
+  var csrf = "", me = "";
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) {
+    ["loginView", "denied", "adminView"].forEach(function (v) { $(v).hidden = v !== id; });
+  }
+  function call(action, data) {
+    var opts = { credentials: "same-origin" };
+    if (data) {
+      opts.method = "POST";
+      opts.headers = { "Content-Type": "application/json" };
+      opts.body = JSON.stringify(data);
+    }
+    return fetch(API + "?action=" + action, opts).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.error || "Something went wrong. Please try again.");
+        return j;
+      });
+    });
+  }
+  function fail(el, err) { el.textContent = err.message; el.hidden = false; }
+
+  function renderList(members) {
+    var box = $("memberList");
+    box.innerHTML = "";
+    $("memberCount").textContent = members.length;
+    if (!members.length) { box.innerHTML = '<p class="adm__empty">No members yet.</p>'; return; }
+    members.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "adm__item";
+      var info = document.createElement("div");
+      var b = document.createElement("b");
+      b.textContent = m.email;
+      info.appendChild(b);
+      if (m.admin) {
+        var tag = document.createElement("span");
+        tag.className = "adm__tag";
+        tag.textContent = "Admin";
+        info.appendChild(tag);
+      }
+      var when = document.createElement("small");
+      when.textContent = m.created ? "Added " + m.created + " UTC" : "";
+      info.appendChild(when);
+      row.appendChild(info);
+      if (m.email !== me) {
+        var rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "adm__remove";
+        rm.textContent = "Remove";
+        rm.addEventListener("click", function () {
+          if (!confirm("Remove " + m.email + "? They will lose access straight away.")) return;
+          call("member_remove", { email: m.email, csrf: csrf }).then(refresh, function (e) { alert(e.message); });
+        });
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+  }
+
+  function refresh() {
+    return call("members").then(function (j) { renderList(j.members); });
+  }
+
+  function start() {
+    call("status").then(function (s) {
+      $("who").hidden = !s.member;
+      if (!s.member) { show("loginView"); return; }
+      me = s.email; csrf = s.csrf;
+      $("whoEmail").textContent = s.email;
+      if (!s.admin) { show("denied"); return; }
+      show("adminView");
+      refresh();
+    }, function () { show("loginView"); });
+  }
+
+  $("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("loginError").hidden = true;
+    call("login", { email: $("lEmail").value.trim(), password: $("lPass").value })
+      .then(function () { $("lPass").value = ""; start(); }, function (err) { fail($("loginError"), err); });
+  });
+
+  $("saveForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("saveError").hidden = true; $("saveOk").hidden = true;
+    var email = $("mEmail").value.trim();
+    call("member_save", { email: email, password: $("mPass").value, admin: $("mAdmin").checked, csrf: csrf })
+      .then(function (j) {
+        $("saveOk").textContent = (j.created ? "Added " : "Password updated for ") + email + ". Share the login details with them on WhatsApp.";
+        $("saveOk").hidden = false;
+        $("mEmail").value = ""; $("mPass").value = ""; $("mAdmin").checked = false;
+        return refresh();
+      }, function (err) { fail($("saveError"), err); });
+  });
+
+  $("logout").addEventListener("click", function () {
+    call("logout", {}).then(start, start);
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

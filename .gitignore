@@ -1,0 +1,6 @@
+# member accounts, sessions and login counters live only on the server
+members/data/users.php
+members/data/ratelimit.php
+members/data/sessions/
+members/data/*.tmp
+members/data/*.lock

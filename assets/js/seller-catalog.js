@@ -1,6 +1,7 @@
 /* =========================================================
-   e-fielders Seller Program: product catalogue
-   Data: assets/data/seller-catalog.json (built by tools/build_catalog.py)
+   e-fielders Seller Program: product catalogue + member login
+   Data and images come from members/api.php and members/img.php:
+   members see the full catalogue with prices, visitors see a short preview.
    ========================================================= */
 (function () {
   "use strict";
@@ -8,7 +9,8 @@
   var root = document.getElementById("catalog");
   if (!root) return;
 
-  var BASE = "../assets/";
+  var API = "../members/api.php";
+  var IMG = "../members/img.php?f=";
   var PAGE_SIZE = 24;
   var WHATSAPP = "923194436232";
 
@@ -17,8 +19,12 @@
   var countEl = document.getElementById("catCount");
   var gridEl = document.getElementById("catGrid");
   var moreBtn = document.getElementById("catMore");
+  var lockEl = document.getElementById("catLock");
+  var memberEl = document.getElementById("catMember");
+  var navMember = document.getElementById("navMember");
 
-  var products = [], order = {}, list = [], shown = 0;
+  var products = [], order = {}, list = [], shown = 0, total = 0;
+  var account = { member: false };
   var state = { main: "all", sub: "all" };
 
   function el(tag, cls, text) {
@@ -40,6 +46,23 @@
     frag.appendChild(document.createTextNode(text + " "));
     frag.appendChild(el("small", null, String(n)));
     return frag;
+  }
+  function holdPage(lock) {
+    if (typeof lockScroll === "function") lockScroll(lock);
+    else document.body.style.overflow = lock ? "hidden" : "";
+  }
+  function post(action, data) {
+    return fetch(API + "?action=" + action, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data || {})
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.error || "Something went wrong. Please try again.");
+        return j;
+      });
+    });
   }
 
   /* ---------- Filters ---------- */
@@ -105,10 +128,12 @@
   function card(p) {
     var b = el("button", "cat-card");
     b.type = "button";
-    b.setAttribute("aria-label", p.n + " (" + p.s + ")" + (p.p ? ", " + price(p.p) : "") + ", view details");
+    b.setAttribute("aria-label", account.member
+      ? p.n + " (" + p.s + ")" + (p.p ? ", " + price(p.p) : "") + ", view details"
+      : p.n + ", log in to see price and details");
     var imgWrap = el("span", "cat-card__img");
     var img = el("img");
-    img.src = BASE + "img/catalog/t/" + p.s + ".webp";
+    img.src = IMG + "t/" + p.s + ".webp";
     img.alt = p.n;
     img.width = 480; img.height = 480;
     img.loading = "lazy"; img.decoding = "async";
@@ -117,12 +142,16 @@
     body.appendChild(el("span", "cat-card__cat", p.c));
     body.appendChild(el("span", "cat-card__name", p.n));
     var foot = el("span", "cat-card__foot");
-    if (p.p) foot.appendChild(el("span", "cat-card__price", price(p.p)));
-    foot.appendChild(el("span", "cat-card__sku", p.s));
+    if (account.member) {
+      if (p.p) foot.appendChild(el("span", "cat-card__price", price(p.p)));
+      foot.appendChild(el("span", "cat-card__sku", p.s));
+    } else {
+      foot.appendChild(el("span", "cat-card__lock", "Members only"));
+    }
     body.appendChild(foot);
     b.appendChild(imgWrap);
     b.appendChild(body);
-    b.addEventListener("click", function () { openModal(p); });
+    b.addEventListener("click", function () { if (account.member) openModal(p); else openLogin(); });
     return b;
   }
 
@@ -131,14 +160,22 @@
     list.slice(shown, shown + PAGE_SIZE).forEach(function (p) { frag.appendChild(card(p)); });
     gridEl.appendChild(frag);
     shown = Math.min(shown + PAGE_SIZE, list.length);
-    countEl.textContent = "Showing " + shown + " of " + list.length + " products";
-    moreBtn.hidden = shown >= list.length;
+    countEl.textContent = account.member
+      ? "Showing " + shown + " of " + list.length + " products"
+      : "Showing " + shown + " of " + total + " products. Log in to see them all with prices.";
+    moreBtn.hidden = !account.member || shown >= list.length;
   }
 
   function update(fromClick) {
-    renderTabs();
-    renderChips();
-    list = filtered();
+    if (account.member) {
+      renderTabs();
+      renderChips();
+      list = filtered();
+    } else {
+      tabsEl.innerHTML = "";
+      chipsEl.hidden = true;
+      list = products;
+    }
     shown = 0;
     gridEl.innerHTML = "";
     renderMore();
@@ -150,6 +187,21 @@
   }
 
   moreBtn.addEventListener("click", renderMore);
+
+  /* ---------- Member bar ---------- */
+  function renderAccount() {
+    lockEl.hidden = account.member;
+    memberEl.hidden = !account.member;
+    if (account.member) {
+      document.getElementById("memberEmail").textContent = account.email;
+      document.getElementById("memberAdmin").hidden = !account.admin;
+    }
+    if (navMember) navMember.textContent = account.member ? "Log out" : "Member Login";
+  }
+
+  function logout() {
+    post("logout").then(load, load);
+  }
 
   /* ---------- Quick view ---------- */
   var modal = document.getElementById("catModal");
@@ -190,10 +242,10 @@
 
     views = [];
     for (var n = 1; n <= p.g; n++) {
-      views.push({ src: BASE + "img/catalog/l/" + p.s + "-" + n + ".webp", alt: p.n + ", photo " + n, label: "Show photo " + n });
+      views.push({ src: IMG + "l/" + p.s + "-" + n + ".webp", alt: p.n + ", photo " + n, label: "Show photo " + n });
     }
     if (p.ch) {
-      views.push({ src: BASE + "img/catalog/charts/" + p.ch + ".webp", alt: "Size chart for " + p.c, label: "Show size chart", chart: true });
+      views.push({ src: IMG + "charts/" + p.ch + ".webp", alt: "Size chart for " + p.c, label: "Show size chart", chart: true });
     }
     mThumbs.innerHTML = "";
     if (views.length > 1) {
@@ -231,8 +283,7 @@
       "SKU: " + p.s + "\nProduct: " + p.n + (p.p ? "\nPrice: " + price(p.p) : ""));
 
     modal.hidden = false;
-    if (typeof lockScroll === "function") lockScroll(true);
-    else document.body.style.overflow = "hidden";
+    holdPage(true);
     mBox.scrollTop = 0;
     document.getElementById("cqClose").focus();
   }
@@ -241,8 +292,7 @@
     if (modal.hidden) return;
     modal.hidden = true;
     mImg.removeAttribute("src");
-    if (typeof lockScroll === "function") lockScroll(false);
-    else document.body.style.overflow = "";
+    holdPage(false);
     if (lastFocus) lastFocus.focus({ preventScroll: true });
   }
 
@@ -250,21 +300,97 @@
   // "Join" closes the popup first, then the page glides to the form
   document.getElementById("cqJoin").addEventListener("click", closeModal);
   modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+
+  /* ---------- Login ---------- */
+  var login = document.getElementById("loginModal");
+  var loginForm = document.getElementById("loginForm");
+  var loginError = document.getElementById("lgError");
+  var loginBtn = document.getElementById("lgSubmit");
+  var loginFocus = null;
+
+  function openLogin() {
+    loginFocus = document.activeElement;
+    loginError.hidden = true;
+    login.hidden = false;
+    holdPage(true);
+    document.getElementById("lgEmail").focus();
+  }
+  function closeLogin() {
+    if (login.hidden) return;
+    login.hidden = true;
+    holdPage(false);
+    if (loginFocus) loginFocus.focus({ preventScroll: true });
+  }
+
+  loginForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("lgEmail").value.trim();
+    var pass = document.getElementById("lgPass").value;
+    if (!email || !pass) {
+      loginError.textContent = "Please enter your email and password.";
+      loginError.hidden = false;
+      return;
+    }
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in…";
+    post("login", { email: email, password: pass })
+      .then(function () {
+        document.getElementById("lgPass").value = "";
+        closeLogin();
+        return load().then(function () {
+          var target = document.getElementById("products");
+          if (window.smoothScroll) window.smoothScroll.scrollTo(target, { duration: 1 });
+          else target.scrollIntoView({ behavior: "smooth" });
+        });
+      })
+      .catch(function (err) {
+        loginError.textContent = err.message;
+        loginError.hidden = false;
+      })
+      .then(function () {
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Log in";
+      });
+  });
+
+  document.getElementById("lgClose").addEventListener("click", closeLogin);
+  // "Join" closes the popup first, then the page glides to the form
+  document.getElementById("lgJoin").addEventListener("click", closeLogin);
+  login.addEventListener("click", function (e) { if (e.target === login) closeLogin(); });
+  document.getElementById("lockLogin").addEventListener("click", openLogin);
+  document.getElementById("memberLogout").addEventListener("click", logout);
+  if (navMember) {
+    navMember.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (account.member) logout(); else openLogin();
+    });
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closeModal(); closeLogin(); }
+  });
 
   /* ---------- Load data ----------
      Loaded straight away (not on scroll) so the page height is settled before
      visitors use the menu links; a late jump would push #apply out of place. */
-  fetch(BASE + "data/seller-catalog.json?v=2")
-    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function (data) {
-      products = data.products || [];
-      order = data.order || {};
-      var total = document.getElementById("catTotal");
-      if (total) total.textContent = products.length;
-      update(false);
-    })
-    .catch(function () {
-      countEl.textContent = "The catalogue could not load. Please refresh the page or ask us on WhatsApp.";
-    });
+  function load() {
+    return fetch(API + "?action=catalog", { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (data) {
+        account = { member: !!data.member, email: data.email, admin: !!data.admin };
+        products = data.products || [];
+        order = data.order || {};
+        total = account.member ? products.length : data.total;
+        state = { main: "all", sub: "all" };
+        var totalEl = document.getElementById("catTotal");
+        if (totalEl) totalEl.textContent = total;
+        var lockTotal = document.getElementById("lockTotal");
+        if (lockTotal) lockTotal.textContent = total;
+        renderAccount();
+        update(false);
+      })
+      .catch(function () {
+        countEl.textContent = "The catalogue could not load. Please refresh the page or ask us on WhatsApp.";
+      });
+  }
+  load();
 })();

@@ -129,6 +129,27 @@
       .cat__chip { flex:0 0 auto; }
     }
     .cat__more { display:flex; justify-content:center; margin-top:28px; }
+    .cat-card__lock { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+    .cat-card__lock::before { content:""; width:12px; height:12px; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 10V7a6 6 0 0 1 12 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2 0h8V7a4 4 0 0 0-8 0z'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 10V7a6 6 0 0 1 12 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2 0h8V7a4 4 0 0 0-8 0z'/%3E%3C/svg%3E") center/contain no-repeat; }
+    .cat-lock { margin-top:28px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:18px; padding:26px 28px; border-radius:24px; background:linear-gradient(135deg,#143b20,#0b130d); border:1px solid rgba(33,206,36,.35); color:#fff; }
+    .cat-lock[hidden], .cat-member[hidden] { display:none; }
+    .cat-lock h3 { font-family:var(--font-head); font-size:22px; color:#fff; margin-bottom:4px; }
+    .cat-lock p { color:#B4C0B4; font-size:15px; }
+    .cat-lock__btns { display:flex; flex-wrap:wrap; gap:10px; }
+    .cat-lock .btn--dark { background:#fff; color:var(--black); }
+    .cat-lock .btn--dark:hover { background:var(--green); }
+    @media (max-width:700px){ .cat-lock { padding:22px 20px; } .cat-lock__btns, .cat-lock__btns .btn { width:100%; } }
+    .cat-member { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 16px; margin:0 auto 18px; padding:10px 18px; width:fit-content; max-width:100%; border-radius:999px; background:rgba(33,206,36,.1); border:1px solid rgba(33,206,36,.35); font-size:14px; color:var(--text); }
+    .cat-member b { word-break:break-all; }
+    .cat-member a, .cat-member button { font-weight:700; color:var(--green-text); text-decoration:underline; background:none; border:0; padding:0; cursor:pointer; font-size:14px; }
+
+    .login-box { position:relative; width:min(440px,100%); max-height:calc(100vh - 40px); overflow-y:auto; border-radius:26px; padding:34px 30px 28px; }
+    .login-box__title { font-family:var(--font-head); font-size:26px; color:var(--text); margin-top:6px; }
+    .login-box__lead { color:var(--muted); font-size:15px; margin-top:-6px; }
+    .login-box__help { color:var(--muted); font-size:13.5px; text-align:center; line-height:1.7; }
+    .login-box__help a { color:var(--green-text); font-weight:700; text-decoration:underline; }
+    .login-box .btn:disabled { opacity:.7; cursor:wait; }
+    @media (max-width:760px){ #loginModal { align-items:center; } .login-box { padding:30px 20px 24px; } }
     .cat__more .btn[hidden] { display:none; }
 
     .cat-modal { position:fixed; inset:0; z-index:1002; background:rgba(8,10,8,.78); display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -277,6 +298,7 @@
       <a href="../#about">About</a>
       <a href="../#reviews">Reviews</a>
       <a class="is-current" href="#top">Seller Program</a>
+      <a href="#products" id="navMember">Member Login</a>
       <a class="btn btn--primary btn--sm nav__cta" href="#apply">Join Now</a>
     </nav>
   </div>
@@ -350,11 +372,26 @@
       <p class="sp-sub"><span id="catTotal">660+</span> ready-to-list products made in Sialkot, sorted by category. Tap any product to see its photos, sizes and delivery time.</p>
     </div>
     <div class="cat" id="catalog">
+      <div class="cat-member" id="catMember" hidden>
+        <span>Logged in as <b id="memberEmail"></b></span>
+        <a id="memberAdmin" href="../members/admin.html" hidden>Manage members</a>
+        <button type="button" id="memberLogout">Log out</button>
+      </div>
       <div class="cat__tabs" id="catMain" role="tablist" aria-label="Product categories"></div>
       <div class="cat__chips" id="catSub" aria-label="Sub categories" hidden></div>
       <p class="cat__count" id="catCount" aria-live="polite">Loading products&hellip;</p>
       <div class="cat__grid" id="catGrid"></div>
       <div class="cat__more"><button class="btn btn--outline" id="catMore" type="button" hidden>Load more products</button></div>
+      <div class="cat-lock" id="catLock" hidden>
+        <div>
+          <h3>See all <span id="lockTotal">660+</span> products with prices</h3>
+          <p>Members get every product with its price, size chart and full photo set.</p>
+        </div>
+        <div class="cat-lock__btns">
+          <button class="btn btn--dark" type="button" id="lockLogin">Member Login</button>
+          <a class="btn btn--primary" href="#apply">Join now</a>
+        </div>
+      </div>
       <noscript><p class="cat__count">Turn on JavaScript to browse the catalogue, or ask us on <a href="https://wa.me/923194436232">WhatsApp</a>.</p></noscript>
     </div>
     <p class="sp-products__note">Prices are per piece in PKR. Full photo sets and order support are shared with members after joining.</p>
@@ -383,6 +420,28 @@
       <p class="cat-modal__note">Price per piece in PKR. Members get the full photo set and order support.</p>
     </div>
   </div>
+</div>
+
+<!-- member login -->
+<div class="cat-modal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="lgTitle">
+  <form class="form login-box" id="loginForm" novalidate>
+    <button class="cat-modal__close" id="lgClose" type="button" aria-label="Close login">&times;</button>
+    <span class="sp-eyebrow">Members</span>
+    <h3 class="login-box__title" id="lgTitle">Member Login</h3>
+    <p class="login-box__lead">Log in with the email and password we gave you after you joined the Seller Program.</p>
+    <div class="form__row">
+      <label for="lgEmail">Email</label>
+      <input id="lgEmail" name="email" type="email" autocomplete="username" required placeholder="you@gmail.com">
+    </div>
+    <div class="form__row">
+      <label for="lgPass">Password</label>
+      <input id="lgPass" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <p class="form__error" id="lgError" role="alert" hidden></p>
+    <button class="btn btn--primary btn--block" id="lgSubmit" type="submit">Log in</button>
+    <p class="login-box__help">Not a member yet? <a href="#apply" id="lgJoin">Join the Seller Program</a>.<br>
+      Forgot your password? <a href="https://wa.me/923194436232?text=Assalam%20o%20Alaikum%2C%20I%20forgot%20my%20Seller%20Program%20password." target="_blank" rel="noopener">Ask us on WhatsApp</a>.</p>
+  </form>
 </div>
 
 <!-- ============ HOW IT WORKS ============ -->
@@ -606,7 +665,7 @@
 
 <script src="../assets/js/lenis.min.js?v=1.3.26"></script>
 <script src="../assets/js/main.js?v=16"></script>
-<script src="../assets/js/seller-catalog.js?v=3"></script>
+<script src="../assets/js/seller-catalog.js?v=4"></script>
 <script>
   /* Seller join form -> WhatsApp */
   (function () {
