@@ -118,7 +118,14 @@
     .cat-card__cat { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--green-text); }
     .cat-card__name { font-weight:600; font-size:14.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .cat-card__sku { margin-top:auto; padding-top:4px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
-    @media (max-width:700px){ .cat-card__body{ padding:11px 11px 13px; } .cat-card__name{ font-size:13.5px; } }
+    @media (max-width:700px){
+      .cat-card__body{ padding:11px 11px 13px; } .cat-card__name{ font-size:13.5px; }
+      .cat__tab { min-height:40px; padding:8px 14px; font-size:14px; }
+      /* sub categories become one swipeable row on phones */
+      .cat__chips { flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; margin:0 -20px 6px; padding:2px 20px 8px; scrollbar-width:none; }
+      .cat__chips::-webkit-scrollbar { display:none; }
+      .cat__chip { flex:0 0 auto; }
+    }
     .cat__more { display:flex; justify-content:center; margin-top:28px; }
     .cat__more .btn[hidden] { display:none; }
 
