@@ -61,6 +61,54 @@ const REVIEWS = [
   {"name": "Hamid Ali", "rating": 5, "date": "September 2026", "text": "I am very happy with my experience at this institute. The teachers are highly professional, cooperative, and supportive. They explain everything clearly and always help students whenever needed. The learning environment is friendly, positive, and comfortable. Overall, it has been a great learning experience for me, and I would definitely recommend this institute to others.", "link": ""}
 ];
 
+/* ---------- Smooth scrolling (Lenis) ----------
+   Mouse wheel and in-page links glide instead of jumping.
+   Only on mouse / trackpad devices: phones and tablets already scroll smoothly
+   by touch, so they keep native scrolling (and CSS smooth anchor scrolling).
+   Skipped for visitors who ask their device for reduced motion. */
+var smoothScroll = null;
+(function () {
+  if (typeof Lenis !== "function") return;
+  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  smoothScroll = new Lenis({ autoRaf: true, lerp: 0.1 });
+
+  // hold the page still while the preloader is on screen
+  var root = document.documentElement;
+  if (root.classList.contains("pl-on")) {
+    smoothScroll.stop();
+    var mo = new MutationObserver(function () {
+      if (root.classList.contains("pl-on")) return;
+      mo.disconnect();
+      smoothScroll.start();
+    });
+    mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  // same-page links (#courses, #admission ...) glide to their section
+  var easeOutExpo = function (t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); };
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a || a.classList.contains("skip-link")) return;
+    var hash = a.getAttribute("href");
+    var target = hash.length > 1 ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+    if (!target) return;
+    e.preventDefault();
+    // measure from the live scroll position and stop below the floating header (scroll-padding-top)
+    var pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    var y = target.getBoundingClientRect().top + window.scrollY - pad;
+    smoothScroll.scrollTo(y, { duration: 1.2, easing: easeOutExpo });
+    if (history.pushState) history.pushState(null, "", hash);
+  });
+})();
+
+// freeze page scrolling behind popups (gallery, video player)
+function lockScroll(lock) {
+  document.body.style.overflow = lock ? "hidden" : "";
+  if (smoothScroll) { if (lock) smoothScroll.stop(); else smoothScroll.start(); }
+}
+
 (function () {
   "use strict";
 
@@ -88,8 +136,15 @@ const REVIEWS = [
 
   /* ---------- Header shadow on scroll ---------- */
   var header = document.getElementById("header");
+  var scrollTicking = false;
+  // at most one header update per frame, however fast scroll events fire
   var onScroll = function () {
-    if (header) header.classList.toggle("is-scrolled", window.scrollY > 10);
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(function () {
+      scrollTicking = false;
+      if (header) header.classList.toggle("is-scrolled", window.scrollY > 10);
+    });
   };
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
@@ -119,9 +174,26 @@ const REVIEWS = [
   );
   if ("IntersectionObserver" in window) {
     revealTargets.forEach(function (el) { el.classList.add("reveal"); });
+    // once revealed, drop the classes so each card's own hover transition applies again
+    var endReveal = function (el) {
+      el.classList.remove("reveal", "is-visible");
+      el.style.removeProperty("--reveal-delay");
+    };
     var revealObs = new IntersectionObserver(function (entries, obs) {
+      var batch = 0;
       entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add("is-visible"); obs.unobserve(e.target); }
+        if (!e.isIntersecting) return;
+        var el = e.target;
+        // cards entering together appear one after another, not all at once
+        el.style.setProperty("--reveal-delay", Math.min(batch++ * 0.08, 0.32) + "s");
+        el.classList.add("is-visible");
+        obs.unobserve(el);
+        el.addEventListener("transitionend", function done(ev) {
+          if (ev.target !== el || ev.propertyName !== "opacity") return;
+          el.removeEventListener("transitionend", done);
+          endReveal(el);
+        });
+        setTimeout(function () { endReveal(el); }, 1400);
       });
     }, { threshold: 0.12 });
     revealTargets.forEach(function (el) { revealObs.observe(el); });
@@ -291,8 +363,8 @@ const REVIEWS = [
     img.alt = it.querySelector("img").alt;
     cap.textContent = it.getAttribute("data-caption") || "";
   }
-  function open(i) { lastFocus = document.activeElement; show(i); box.hidden = false; document.body.style.overflow = "hidden"; box.querySelector(".lightbox__close").focus(); }
-  function close() { box.hidden = true; document.body.style.overflow = ""; if (lastFocus) lastFocus.focus(); }
+  function open(i) { lastFocus = document.activeElement; show(i); box.hidden = false; lockScroll(true); box.querySelector(".lightbox__close").focus(); }
+  function close() { box.hidden = true; lockScroll(false); if (lastFocus) lastFocus.focus({ preventScroll: true }); }
   items.forEach(function (it, i) { it.addEventListener("click", function () { open(i); }); });
   box.querySelector(".lightbox__close").addEventListener("click", close);
   box.querySelector(".lightbox__prev").addEventListener("click", function () { show(idx - 1); });
@@ -358,21 +430,33 @@ const VIDEOS = [
   items.forEach(function (v) { track.appendChild(makeCard(v, false)); });
   items.forEach(function (v) { track.appendChild(makeCard(v, true)); });
 
-  // card previews play automatically (muted) while visible
+  // card previews play automatically (muted) only while the card is inside the slider
+  // AND the slider is on screen, so no video keeps decoding while the visitor scrolls elsewhere
   var vids = Array.prototype.slice.call(track.querySelectorAll(".reel__video"));
+  var shown = [];
   function playVid(vid) {
     if (reduce) return;
     if (!vid.getAttribute("src")) { vid.src = vid.getAttribute("data-src"); }
     var p = vid.play(); if (p && p.catch) p.catch(function () {});
   }
+  function syncVids() {
+    vids.forEach(function (v) {
+      if (inView && !modalOpen && shown.indexOf(v) > -1) playVid(v); else v.pause();
+    });
+  }
   if ("IntersectionObserver" in window) {
     var vio = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) { if (en.isIntersecting && !modalOpen) playVid(en.target); else en.target.pause(); });
+      entries.forEach(function (en) {
+        var i = shown.indexOf(en.target);
+        if (en.isIntersecting) { if (i < 0) shown.push(en.target); }
+        else if (i > -1) shown.splice(i, 1);
+      });
+      syncVids();
     }, { root: viewport, threshold: 0.4 });
     vids.forEach(function (v) { vio.observe(v); });
   } else { vids.forEach(playVid); }
 
-  var index = 0, timer = null, paused = false, modalOpen = false;
+  var index = 0, timer = null, paused = false, modalOpen = false, inView = !("IntersectionObserver" in window);
   function stepPx() {
     var c = track.children[0]; if (!c) return 0;
     var gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
@@ -392,7 +476,7 @@ const VIDEOS = [
     if (e.target !== track) return;
     if (index >= n) { index -= n; render(false); }
   });
-  function start() { stop(); if (!paused && !modalOpen && !reduce) timer = setInterval(function () { go(1); }, REELS_AUTOPLAY_SECONDS * 1000); }
+  function start() { stop(); if (!paused && !modalOpen && !reduce && inView) timer = setInterval(function () { go(1); }, REELS_AUTOPLAY_SECONDS * 1000); }
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
   document.getElementById("vNext").addEventListener("click", function () { go(1); start(); });
   document.getElementById("vPrev").addEventListener("click", function () { go(-1); start(); });
@@ -410,7 +494,11 @@ const VIDEOS = [
   window.addEventListener("resize", function () { render(false); });
   document.addEventListener("visibilitychange", function () { if (document.hidden) stop(); else start(); });
   if ("IntersectionObserver" in window) {
-    new IntersectionObserver(function (en) { if (en[0].isIntersecting) start(); else stop(); }).observe(viewport);
+    new IntersectionObserver(function (en) {
+      inView = en[0].isIntersecting;
+      syncVids();
+      if (inView) start(); else stop();
+    }).observe(viewport);
   } else { start(); }
 
   // full video popup (with sound)
@@ -428,15 +516,15 @@ const VIDEOS = [
     if (p && p.catch) p.catch(function () { f.muted = true; f.play().catch(function () {}); });
     link.href = v.link || "#";
     link.textContent = "Open on " + (v.source || "social media");
-    modal.hidden = false; document.body.style.overflow = "hidden";
+    modal.hidden = false; lockScroll(true);
     document.getElementById("vClose").focus();
   }
   function closeModal() {
     var f = frame.querySelector("video"); if (f) f.pause();
-    modal.hidden = true; frame.innerHTML = ""; document.body.style.overflow = "";
+    modal.hidden = true; frame.innerHTML = ""; lockScroll(false);
     modalOpen = false; start();
-    vids.forEach(function (x) { var r = x.getBoundingClientRect(), vr = viewport.getBoundingClientRect(); if (r.left < vr.right && r.right > vr.left) playVid(x); });
-    if (lastFocus) lastFocus.focus();
+    syncVids();
+    if (lastFocus) lastFocus.focus({ preventScroll: true });
   }
   document.getElementById("vClose").addEventListener("click", closeModal);
   modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
