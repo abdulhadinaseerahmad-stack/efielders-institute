@@ -1,12 +1,15 @@
 """Build the Seller Program product catalogue from a Nova Bazaar export.
 
 Usage:
-    python3 -I tools/build_catalog.py "<path to 'Nova Bazaar Leather' folder>" <site root>
+    python3 -I tools/build_catalog.py "<path to 'Nova Bazaar Leather' folder>" <site root> [--reuse-images]
+
+--reuse-images keeps image files that already exist in <site root> (fast rebuild of the data only).
 
 Reads every <Main>/<Sub>/<SKU - title>/product-data.json (+ images/) in the export and writes:
     assets/data/seller-catalog.json      product data used by seller-program/index.html
     assets/img/catalog/t/<SKU>.webp      480px card image
     assets/img/catalog/l/<SKU>-<n>.webp  1100px quick-view images (up to 4)
+    assets/img/catalog/charts/<id>.webp  size charts shared between products
 """
 import glob
 import hashlib
@@ -18,9 +21,14 @@ from collections import Counter
 
 from PIL import Image, ImageOps
 
-THUMB_PX, LARGE_PX, GALLERY_MAX = 480, 1100, 4
-# images shared by this many products are size charts / banners, not product photos
+THUMB_PX, LARGE_PX, CHART_PX, GALLERY_MAX = 480, 1100, 1400, 4
+# images shared by this many products are size charts, not product photos
 SHARED_IMAGE_LIMIT = 3
+# added to every supplier price before it is shown on the site
+PRICE_MARKUP_PKR = 2000
+
+# categories whose export has no size chart borrow the chart of a similar category
+CHART_FROM_CATEGORY = {"Leather Pants": "Hair On Pants", "Hair On Shorts": "Hair On Pants"}
 
 # display order on the page (main category -> sub categories)
 CATEGORY_ORDER = {
@@ -75,7 +83,9 @@ def sizes_from(options):
     return ""
 
 
-def save_webp(src, dest, px):
+def save_webp(src, dest, px, reuse=False):
+    if reuse and os.path.exists(dest):
+        return
     with Image.open(src) as im:
         im = ImageOps.exif_transpose(im)
         if im.mode not in ("RGB", "RGBA"):
@@ -88,7 +98,7 @@ def save_webp(src, dest, px):
         im.save(dest, "WEBP", quality=80, method=6)
 
 
-def main(src_root, site_root):
+def main(src_root, site_root, reuse=False):
     products = []
     for path in glob.glob(glob.escape(src_root) + "/**/product-data.json", recursive=True):
         with open(path, encoding="utf-8") as fh:
@@ -106,8 +116,28 @@ def main(src_root, site_root):
 
     thumb_dir = os.path.join(site_root, "assets/img/catalog/t")
     large_dir = os.path.join(site_root, "assets/img/catalog/l")
-    os.makedirs(thumb_dir, exist_ok=True)
-    os.makedirs(large_dir, exist_ok=True)
+    chart_dir = os.path.join(site_root, "assets/img/catalog/charts")
+    for d in (thumb_dir, large_dir, chart_dir):
+        os.makedirs(d, exist_ok=True)
+
+    # size charts: each product's own chart, else the most common chart of its category
+    own_chart, chart_src = {}, {}
+    for data, imgs in products:
+        for f in imgs:
+            if shared[digest[f]] >= SHARED_IMAGE_LIMIT:
+                cid = digest[f][:8]
+                chart_src.setdefault(cid, f)
+                own_chart.setdefault(data["listing_sku"], cid)
+    by_category = {}
+    for data, _ in products:
+        cid = own_chart.get(data["listing_sku"])
+        if cid:
+            by_category.setdefault(data["sub_category"], Counter())[cid] += 1
+    category_chart = {c: n.most_common(1)[0][0] for c, n in by_category.items()}
+    for cat, donor in CHART_FROM_CATEGORY.items():
+        category_chart.setdefault(cat, category_chart.get(donor))
+    for cid, f in chart_src.items():
+        save_webp(f, os.path.join(chart_dir, cid + ".webp"), CHART_PX, reuse)
 
     sub_rank = {sub: (mi, si) for mi, (main_cat, subs) in enumerate(CATEGORY_ORDER.items())
                 for si, sub in enumerate(subs)}
@@ -118,13 +148,14 @@ def main(src_root, site_root):
             raise SystemExit("unexpected SKU: %r" % sku)
         photos = [f for f in imgs if shared[digest[f]] < SHARED_IMAGE_LIMIT] or imgs[:1]
         gallery = photos[:GALLERY_MAX]
-        save_webp(gallery[0], os.path.join(thumb_dir, sku + ".webp"), THUMB_PX)
+        save_webp(gallery[0], os.path.join(thumb_dir, sku + ".webp"), THUMB_PX, reuse)
         for n, f in enumerate(gallery, 1):
-            save_webp(f, os.path.join(large_dir, "%s-%d.webp" % (sku, n)), LARGE_PX)
+            save_webp(f, os.path.join(large_dir, "%s-%d.webp" % (sku, n)), LARGE_PX, reuse)
         sub = data["sub_category"]
         if sub not in sub_rank:
             raise SystemExit("category missing from CATEGORY_ORDER: %r" % sub)
-        out.append({
+        price = data.get("price_from")
+        item = {
             "s": sku,
             "n": clean_name(data["name"]),
             "m": data["main_category"],
@@ -135,7 +166,13 @@ def main(src_root, site_root):
             "ht": data.get("handling_time") or "",
             "st": data.get("shipping_time") or "",
             "d": details_from(data.get("dimensions")),
-        })
+        }
+        if price:
+            item["p"] = int(round(price)) + PRICE_MARKUP_PKR
+        chart = own_chart.get(sku) or category_chart.get(sub)
+        if chart:
+            item["ch"] = chart
+        out.append(item)
 
     # category order first, newest SKU first inside each category
     out.sort(key=lambda p: (sub_rank[p["c"]], -int(p["s"][3:])))
@@ -144,8 +181,10 @@ def main(src_root, site_root):
     catalog = {"order": CATEGORY_ORDER, "products": out}
     with open(os.path.join(data_dir, "seller-catalog.json"), "w", encoding="utf-8") as fh:
         json.dump(catalog, fh, ensure_ascii=False, separators=(",", ":"))
-    print("%d products, %d categories" % (len(out), len({p["c"] for p in out})))
+    print("%d products, %d categories, %d size charts, %d products with a chart, %d with a price" % (
+        len(out), len({p["c"] for p in out}), len(chart_src),
+        sum(1 for p in out if "ch" in p), sum(1 for p in out if "p" in p)))
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], reuse="--reuse-images" in sys.argv[3:])

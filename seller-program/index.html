@@ -117,7 +117,9 @@
     .cat-card__body { display:flex; flex-direction:column; gap:5px; padding:14px 14px 16px; flex:1; }
     .cat-card__cat { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--green-text); }
     .cat-card__name { font-weight:600; font-size:14.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-    .cat-card__sku { margin-top:auto; padding-top:4px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .cat-card__foot { margin-top:auto; padding-top:6px; display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+    .cat-card__price { font-family:var(--font-head); font-weight:800; font-size:16px; color:var(--text); font-variant-numeric:tabular-nums; }
+    .cat-card__sku { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
     @media (max-width:700px){
       .cat-card__body{ padding:11px 11px 13px; } .cat-card__name{ font-size:13.5px; }
       .cat__tab { min-height:40px; padding:8px 14px; font-size:14px; }
@@ -141,10 +143,17 @@
     .cat-modal__thumbs button { width:64px; height:64px; padding:0; border:2px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; cursor:pointer; }
     .cat-modal__thumbs button[aria-current="true"] { border-color:var(--green); }
     .cat-modal__thumbs img { width:100%; height:100%; object-fit:contain; }
+    .cat-modal__thumbs .is-chart { position:relative; }
+    .cat-modal__thumbs .is-chart span { position:absolute; left:0; right:0; bottom:0; padding:2px 0; background:var(--black); color:var(--white); font-size:10px; font-weight:700; text-align:center; }
+    .cat-modal__zoom { display:inline-block; margin-top:10px; font-size:13px; font-weight:700; color:var(--green-text); text-decoration:underline; }
+    .cat-modal__zoom[hidden] { display:none; }
     .cat-modal__info { padding:30px 28px 28px; display:flex; flex-direction:column; gap:10px; }
     .cat-modal__cat { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--green-text); padding-right:48px; }
     .cat-modal__title { font-family:var(--font-head); font-size:22px; line-height:1.25; color:var(--text); }
+    .cat-modal__price { font-family:var(--font-head); font-weight:800; font-size:28px; color:var(--text); line-height:1.1; font-variant-numeric:tabular-nums; }
+    .cat-modal__price[hidden] { display:none; }
     .cat-modal__sku { color:var(--muted); font-size:14px; }
+    .cat-modal__chart { display:block; margin-top:4px; padding:0; border:0; background:none; color:var(--green-text); font-weight:700; font-size:14px; text-decoration:underline; cursor:pointer; }
     .cat-modal__specs { margin:6px 0 4px; display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:14px; border-top:1px solid var(--line); padding-top:14px; }
     .cat-modal__specs dt { font-weight:700; color:var(--text); }
     .cat-modal__specs dd { margin:0; color:var(--muted); }
@@ -348,7 +357,7 @@
       <div class="cat__more"><button class="btn btn--outline" id="catMore" type="button" hidden>Load more products</button></div>
       <noscript><p class="cat__count">Turn on JavaScript to browse the catalogue, or ask us on <a href="https://wa.me/923194436232">WhatsApp</a>.</p></noscript>
     </div>
-    <p class="sp-products__note">Wholesale prices, full photo sets and order support are shared with members after joining.</p>
+    <p class="sp-products__note">Prices are per piece in PKR. Full photo sets and order support are shared with members after joining.</p>
   </div>
 </section>
 
@@ -359,17 +368,19 @@
     <div class="cat-modal__media">
       <div class="cat-modal__main"><img id="cqImg" alt="" width="1100" height="1100"></div>
       <div class="cat-modal__thumbs" id="cqThumbs"></div>
+      <a class="cat-modal__zoom" id="cqZoom" href="#" target="_blank" rel="noopener" hidden>Open size chart in full size</a>
     </div>
     <div class="cat-modal__info">
       <span class="cat-modal__cat" id="cqCat"></span>
       <h3 class="cat-modal__title" id="cqTitle"></h3>
+      <p class="cat-modal__price" id="cqPrice" hidden></p>
       <p class="cat-modal__sku" id="cqSku"></p>
       <dl class="cat-modal__specs" id="cqSpecs"></dl>
       <div class="cat-modal__cta">
         <a class="btn btn--primary" href="#apply" id="cqJoin">Join to sell this product</a>
         <a class="btn btn--outline" href="https://wa.me/923194436232" id="cqWa" target="_blank" rel="noopener">Ask on WhatsApp</a>
       </div>
-      <p class="cat-modal__note">Members get the wholesale price and the full photo set.</p>
+      <p class="cat-modal__note">Price per piece in PKR. Members get the full photo set and order support.</p>
     </div>
   </div>
 </div>
@@ -595,7 +606,7 @@
 
 <script src="../assets/js/lenis.min.js?v=1.3.26"></script>
 <script src="../assets/js/main.js?v=16"></script>
-<script src="../assets/js/seller-catalog.js?v=2"></script>
+<script src="../assets/js/seller-catalog.js?v=3"></script>
 <script>
   /* Seller join form -> WhatsApp */
   (function () {

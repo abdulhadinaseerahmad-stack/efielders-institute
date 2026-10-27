@@ -32,6 +32,9 @@
     products.forEach(function (p) { if (filter(p)) n++; });
     return n;
   }
+  function price(n) {
+    return "PKR " + Number(n).toLocaleString("en-US");
+  }
   function label(text, n) {
     var frag = document.createDocumentFragment();
     frag.appendChild(document.createTextNode(text + " "));
@@ -102,7 +105,7 @@
   function card(p) {
     var b = el("button", "cat-card");
     b.type = "button";
-    b.setAttribute("aria-label", p.n + " (" + p.s + "), view details");
+    b.setAttribute("aria-label", p.n + " (" + p.s + ")" + (p.p ? ", " + price(p.p) : "") + ", view details");
     var imgWrap = el("span", "cat-card__img");
     var img = el("img");
     img.src = BASE + "img/catalog/t/" + p.s + ".webp";
@@ -113,7 +116,10 @@
     var body = el("span", "cat-card__body");
     body.appendChild(el("span", "cat-card__cat", p.c));
     body.appendChild(el("span", "cat-card__name", p.n));
-    body.appendChild(el("span", "cat-card__sku", p.s));
+    var foot = el("span", "cat-card__foot");
+    if (p.p) foot.appendChild(el("span", "cat-card__price", price(p.p)));
+    foot.appendChild(el("span", "cat-card__sku", p.s));
+    body.appendChild(foot);
     b.appendChild(imgWrap);
     b.appendChild(body);
     b.addEventListener("click", function () { openModal(p); });
@@ -147,24 +153,30 @@
 
   /* ---------- Quick view ---------- */
   var modal = document.getElementById("catModal");
+  var mBox = modal.querySelector(".cat-modal__box");
   var mImg = document.getElementById("cqImg");
   var mThumbs = document.getElementById("cqThumbs");
+  var mZoom = document.getElementById("cqZoom");
   var mSpecs = document.getElementById("cqSpecs");
   var mWa = document.getElementById("cqWa");
-  var lastFocus = null;
+  var lastFocus = null, views = [];
 
-  function showImage(p, n) {
-    mImg.src = BASE + "img/catalog/l/" + p.s + "-" + n + ".webp";
-    mImg.alt = p.n + ", photo " + n;
-    Array.prototype.forEach.call(mThumbs.children, function (t, i) {
-      t.setAttribute("aria-current", i + 1 === n ? "true" : "false");
+  // views = product photos, then the size chart (if the product has one)
+  function showView(i) {
+    var v = views[i];
+    mImg.src = v.src;
+    mImg.alt = v.alt;
+    mZoom.hidden = !v.chart;
+    if (v.chart) mZoom.href = v.src;
+    Array.prototype.forEach.call(mThumbs.children, function (t, k) {
+      t.setAttribute("aria-current", k === i ? "true" : "false");
     });
   }
 
   function spec(term, value) {
-    if (!value) return;
+    if (!value) return null;
     mSpecs.appendChild(el("dt", null, term));
-    mSpecs.appendChild(el("dd", null, value));
+    return mSpecs.appendChild(el("dd", null, value));
   }
 
   function openModal(p) {
@@ -172,39 +184,56 @@
     document.getElementById("cqCat").textContent = p.m + " / " + p.c;
     document.getElementById("cqTitle").textContent = p.n;
     document.getElementById("cqSku").textContent = "SKU: " + p.s;
+    var priceEl = document.getElementById("cqPrice");
+    priceEl.hidden = !p.p;
+    if (p.p) priceEl.textContent = price(p.p);
 
+    views = [];
+    for (var n = 1; n <= p.g; n++) {
+      views.push({ src: BASE + "img/catalog/l/" + p.s + "-" + n + ".webp", alt: p.n + ", photo " + n, label: "Show photo " + n });
+    }
+    if (p.ch) {
+      views.push({ src: BASE + "img/catalog/charts/" + p.ch + ".webp", alt: "Size chart for " + p.c, label: "Show size chart", chart: true });
+    }
     mThumbs.innerHTML = "";
-    for (var n = 1; n <= p.g && p.g > 1; n++) {
-      (function (n) {
-        var t = el("button");
+    if (views.length > 1) {
+      views.forEach(function (v, i) {
+        var t = el("button", v.chart ? "is-chart" : null);
         t.type = "button";
-        t.setAttribute("aria-label", "Show photo " + n);
+        t.setAttribute("aria-label", v.label);
         var ti = el("img");
-        ti.src = BASE + "img/catalog/l/" + p.s + "-" + n + ".webp";
+        ti.src = v.src;
         ti.alt = "";
         ti.loading = "lazy";
         t.appendChild(ti);
-        t.addEventListener("click", function () { showImage(p, n); });
+        if (v.chart) t.appendChild(el("span", null, "Size chart"));
+        t.addEventListener("click", function () { showView(i); });
         mThumbs.appendChild(t);
-      })(n);
+      });
     }
-    showImage(p, 1);
+    showView(0);
 
     mSpecs.innerHTML = "";
     spec("Material", p.mat);
-    spec("Sizes", p.sz);
+    var sizes = spec("Sizes", p.sz || (p.ch ? "See size chart" : ""));
+    if (sizes && p.ch) {
+      var chartBtn = el("button", "cat-modal__chart", "View size chart");
+      chartBtn.type = "button";
+      chartBtn.addEventListener("click", function () { showView(views.length - 1); mBox.scrollTop = 0; });
+      sizes.appendChild(chartBtn);
+    }
     (p.d || []).forEach(function (d) { spec(d[0] || "Detail", d[1]); });
     spec("Ready to ship", p.ht);
     spec("Delivery", p.st);
 
     mWa.href = "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(
       "Assalam o Alaikum, I want to sell this product through the e-fielders Seller Program.\n\n" +
-      "SKU: " + p.s + "\nProduct: " + p.n);
+      "SKU: " + p.s + "\nProduct: " + p.n + (p.p ? "\nPrice: " + price(p.p) : ""));
 
     modal.hidden = false;
     if (typeof lockScroll === "function") lockScroll(true);
     else document.body.style.overflow = "hidden";
-    modal.querySelector(".cat-modal__box").scrollTop = 0;
+    mBox.scrollTop = 0;
     document.getElementById("cqClose").focus();
   }
 
@@ -226,7 +255,7 @@
   /* ---------- Load data ----------
      Loaded straight away (not on scroll) so the page height is settled before
      visitors use the menu links; a late jump would push #apply out of place. */
-  fetch(BASE + "data/seller-catalog.json?v=1")
+  fetch(BASE + "data/seller-catalog.json?v=2")
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (data) {
       products = data.products || [];
