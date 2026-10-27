@@ -7,7 +7,7 @@ Usage:
 
 Reads every <Main>/<Sub>/<SKU - title>/product-data.json (+ images/) in the export and writes:
     members/data/catalog.php             product data, served to members by members/api.php
-    assets/img/catalog/t/<SKU>.webp      480px card image
+    assets/img/catalog/t/<SKU>.webp      480px card image (SKU = EF-<supplier number>)
     assets/img/catalog/l/<SKU>-<n>.webp  1100px quick-view images (up to 4)
     assets/img/catalog/charts/<id>.webp  size charts shared between products
 """
@@ -30,6 +30,8 @@ GUARD_LINE = "<?php http_response_code(404); exit; ?>\n"
 SHARED_IMAGE_LIMIT = 3
 # added to every supplier price before it is shown on the site
 PRICE_MARKUP_PKR = 2000
+# supplier SKUs (NB-00791) are shown as our own (EF-00791); the number stays the same
+SKU_PREFIX = "EF-"
 
 # categories whose export has no size chart borrow the chart of a similar category
 CHART_FROM_CATEGORY = {"Leather Pants": "Hair On Pants", "Hair On Shorts": "Hair On Pants"}
@@ -147,9 +149,10 @@ def main(src_root, site_root, reuse=False):
                 for si, sub in enumerate(subs)}
     out = []
     for data, imgs in products:
-        sku = data["listing_sku"]
-        if not re.fullmatch(r"NB-\d+", sku or ""):
-            raise SystemExit("unexpected SKU: %r" % sku)
+        src_sku = data["listing_sku"]
+        if not re.fullmatch(r"NB-\d+", src_sku or ""):
+            raise SystemExit("unexpected SKU: %r" % src_sku)
+        sku = SKU_PREFIX + src_sku[3:]
         photos = [f for f in imgs if shared[digest[f]] < SHARED_IMAGE_LIMIT] or imgs[:1]
         gallery = photos[:GALLERY_MAX]
         save_webp(gallery[0], os.path.join(thumb_dir, sku + ".webp"), THUMB_PX, reuse)
@@ -173,7 +176,7 @@ def main(src_root, site_root, reuse=False):
         }
         if price:
             item["p"] = int(round(price)) + PRICE_MARKUP_PKR
-        chart = own_chart.get(sku) or category_chart.get(sub)
+        chart = own_chart.get(src_sku) or category_chart.get(sub)
         if chart:
             item["ch"] = chart
         out.append(item)

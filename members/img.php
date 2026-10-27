@@ -1,7 +1,7 @@
 <?php
 /* =========================================================
    e-fielders member area: catalogue images
-   ?f=t/NB-00791.webp | l/NB-00791-2.webp | charts/aa608fd0.webp
+   ?f=t/EF-00791.webp | l/EF-00791-2.webp | charts/aa608fd0.webp
    Members get every image; visitors only the preview card images.
    The image folder itself is blocked by .htaccess, so this is the only way in.
    ========================================================= */
@@ -9,7 +9,7 @@ declare(strict_types=1);
 require __DIR__ . '/lib.php';
 
 $f = (string) ($_GET['f'] ?? '');
-if (!preg_match('~^(t|l|charts)/(NB-\d+(?:-\d+)?|[0-9a-f]{8})\.webp$~', $f, $m)) {
+if (!preg_match('~^(t|l|charts)/(EF-\d+(?:-\d+)?|[0-9a-f]{8})\.webp$~', $f, $m)) {
     http_response_code(404);
     exit;
 }
