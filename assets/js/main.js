@@ -71,7 +71,14 @@ var smoothScroll = null;
   if (typeof Lenis !== "function") return;
   if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  smoothScroll = new Lenis({ autoRaf: true, lerp: 0.1 });
+  smoothScroll = new Lenis({ lerp: 0.1 });
+  // drive Lenis from our own frame loop: works with every Lenis version
+  // (an older lenis.min.js without autoRaf would otherwise freeze the page)
+  var lenis = smoothScroll;
+  requestAnimationFrame(function frame(time) {
+    lenis.raf(time);
+    requestAnimationFrame(frame);
+  });
 
   // hold the page still while the preloader is on screen
   var root = document.documentElement;
